@@ -155,5 +155,3 @@ function(setup_litecore_build_base)
         endforeach()
      endif()
 endfunction()
-
-

@@ -119,10 +119,10 @@ else()
     message(FATAL_ERROR "Unable to determine a supported platform from ${CMAKE_SYSTEM_NAME}")
 endif(MSVC)
 
-if(CMAKE_COMPILER_IS_GNUCC)
-    # Suppress an annoying note about GCC 7 ABI changes, and linker errors about the Fleece C API
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi -Wno-odr")
-endif()
+# if(CMAKE_COMPILER_IS_GNUCC)
+#     # Suppress an annoying note about GCC 7 ABI changes, and linker errors about the Fleece C API
+#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi -Wno-odr")
+# endif()
 
 check_threading()
 setup_globals()
@@ -346,29 +346,6 @@ if(USE_COUCHBASE_SQLITE)
         CouchbaseSqlite3
     )
 endif()
-
-get_property(targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
-message(STATUS "jzhao all targets = ${targets}")
-
-function(get_all_targets var)
-    set(targets)
-    get_all_targets_recursive(targets ${CMAKE_CURRENT_SOURCE_DIR})
-    set(${var} ${targets} PARENT_SCOPE)
-endfunction()
-
-macro(get_all_targets_recursive targets dir)
-    get_property(subdirectories DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
-    foreach(subdir ${subdirectories})
-        get_all_targets_recursive(${targets} ${subdir})
-    endforeach()
-
-    get_property(current_targets DIRECTORY ${dir} PROPERTY BUILDSYSTEM_TARGETS)
-    list(APPEND ${targets} ${current_targets})
-endmacro()
-
-get_all_targets(all_targets)
-message(STATUS "jzhao - All targets: ${all_targets}")
-
 
 setup_litecore_build()
 
