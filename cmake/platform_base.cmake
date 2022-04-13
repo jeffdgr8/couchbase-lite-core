@@ -146,7 +146,7 @@ function(setup_litecore_build_base)
         # Suppress an annoying note about GCC 7 ABI changes, and linker errors about the Fleece C API
 
         get_all_targets(all_targets)
-message(STATUS "jzhao - all targets (base): ${all_targets}")
+		list(FILTER all_targets EXCLUDE REGEX "lib|apidoc")
         foreach(target ${all_targets})
             target_compile_options(
                 ${target} PRIVATE
@@ -154,7 +154,6 @@ message(STATUS "jzhao - all targets (base): ${all_targets}")
             )
         endforeach()
      endif()
-
 endfunction()
 
 
