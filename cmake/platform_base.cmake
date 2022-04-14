@@ -125,21 +125,6 @@ function(set_litecore_source_base)
     )
 endfunction()
 
-# function(get_all_targets outvar)
-    # set(targets)
-    # get_all_targets_recursive(targets ${CMAKE_CURRENT_SOURCE_DIR})
-    # set(${outvar} ${targets} PARENT_SCOPE)
-# endfunction()
-
-# macro(get_all_targets_recursive targets dir)
-    # get_directory_property(subdirectories DIRECTORY ${dir} SUBDIRECTORIES)
-    # foreach(subdir ${subdirectories})
-        # get_all_targets_recursive(${targets} ${subdir})
-    # endforeach()
-    # get_directory_property(current_targets DIRECTORY ${dir} BUILDSYSTEM_TARGETS)
-    # list(APPEND ${targets} ${current_targets})
-# endmacro()
-
 function(setup_litecore_build_base)
     if(CMAKE_COMPILER_IS_GNUCC)
         # Suppress an annoying note about GCC 7 ABI changes, and linker errors about the Fleece C API
