@@ -6,8 +6,8 @@ function(set_litecore_source_base)
     endif()
 
     set(LITECORE_SHARED_LINKER_FLAGS "" CACHE INTERNAL "")
-    set(LITECORE_C_FLAGS "" CACHE INTERNAL "")
-    SET(LITECORE_CXX_FLAGS "" CACHE INTERNAL "")
+#    set(LITECORE_C_FLAGS "" CACHE INTERNAL "")
+#    SET(LITECORE_CXX_FLAGS "" CACHE INTERNAL "")
 
     # Error.cc will be added here *and* in Support because the Support version is a stub
     # That goes through the C API of LiteCore.  If the stub were compiled into LiteCore

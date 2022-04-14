@@ -44,32 +44,32 @@ function(setup_globals)
     #   4800 (value forced to bool)
     #   5105 ("macro expansion producing 'defined' has undefined behavior")
     # Disable warning about "insecure" C runtime functions (strcpy vs strcpy_s)
-    string(
-        CONCAT LITECORE_CXX_FLAGS
-        "/utf-8 "
-        "/EHsc "
-        "/wd4068 "
-        "/wd4244 "
-        "/wd4018 "
-        "/wd4819 "
-        "/wd4800 "
-        "/wd5105 "
-        "-D_CRT_SECURE_NO_WARNINGS=1"
-    )
-    set(LITECORE_CXX_FLAGS ${LITECORE_CXX_FLAGS} CACHE INTERNAL "")
+    # string(
+    #     CONCAT LITECORE_CXX_FLAGS
+    #     "/utf-8 "
+    #     "/EHsc "
+    #     "/wd4068 "
+    #     "/wd4244 "
+    #     "/wd4018 "
+    #     "/wd4819 "
+    #     "/wd4800 "
+    #     "/wd5105 "
+    #     "-D_CRT_SECURE_NO_WARNINGS=1"
+    # )
+    # set(LITECORE_CXX_FLAGS ${LITECORE_CXX_FLAGS} CACHE INTERNAL "")
 
-    string(
-        CONCAT LITECORE_C_FLAGS
-        "/utf-8 "
-        "/wd4068 "
-        "/wd4244 "
-        "/wd4018 "
-        "/wd4819 "
-        "/wd4800 "
-        "/wd5105 "
-        "-D_CRT_SECURE_NO_WARNINGS=1"
-    )
-    set(LITECORE_C_FLAGS ${LITECORE_C_FLAGS} CACHE INTERNAL "")
+    # string(
+    #     CONCAT LITECORE_C_FLAGS
+    #     "/utf-8 "
+    #     "/wd4068 "
+    #     "/wd4244 "
+    #     "/wd4018 "
+    #     "/wd4819 "
+    #     "/wd4800 "
+    #     "/wd5105 "
+    #     "-D_CRT_SECURE_NO_WARNINGS=1"
+    # )
+    # set(LITECORE_C_FLAGS ${LITECORE_C_FLAGS} CACHE INTERNAL "")
 
     # Disable the following warnings:
     #   4099 (library linked without debug info)
