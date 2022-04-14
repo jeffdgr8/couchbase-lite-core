@@ -139,6 +139,27 @@ function(setup_litecore_build_win)
         Ws2_32
     )
 
+    # Compile string literals as UTF-8,
+    # Enable exception handling for C++ but disable for extern C
+    # Disable the following warnings:
+    #   4068 (unrecognized pragma)
+    #   4244 (converting float to integer)
+    #   4018 (signed / unsigned mismatch)
+    #   4819 (character that cannot be represented in current code page)
+    #   4800 (value forced to bool)
+    #   5105 ("macro expansion producing 'defined' has undefined behavior")
+    # Disable warning about "insecure" C runtime functions (strcpy vs strcpy_s)
+    get_all_targets(all_targets)
+    foreach(target ${all_targets})
+        target_compile_options(
+            ${target} PRIVATE
+            "/utf-8"
+            "/wd4068;/wd4244;/wd4018;/wd4819;/wd4800;/wd5105"
+            "-D_CRT_SECURE_NO_WARNINGS=1"
+            "$<$<COMPILE_LANGUAGE:CXX>:/EHsc>"
+        )
+    endforeach()
+
     # Suppress zlib errors
     target_compile_options(
         zlibstatic PRIVATE
