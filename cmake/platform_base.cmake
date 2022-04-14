@@ -132,25 +132,23 @@ function(get_all_targets outvar)
 endfunction()
 
 macro(get_all_targets_recursive targets dir)
-    get_directory_property(subdirectories DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
+    get_directory_property(subdirectories DIRECTORY ${dir} SUBDIRECTORIES)
     foreach(subdir ${subdirectories})
         get_all_targets_recursive(${targets} ${subdir})
     endforeach()
-
-    get_property(current_targets DIRECTORY ${dir} PROPERTY BUILDSYSTEM_TARGETS)
+    get_directory_property(current_targets DIRECTORY ${dir} BUILDSYSTEM_TARGETS)
     list(APPEND ${targets} ${current_targets})
 endmacro()
 
 function(setup_litecore_build_base)
     if(CMAKE_COMPILER_IS_GNUCC)
         # Suppress an annoying note about GCC 7 ABI changes, and linker errors about the Fleece C API
-
-        get_all_targets(all_targets)
+		get_all_targets(all_targets)
 		list(FILTER all_targets EXCLUDE REGEX "lib|apidoc")
         foreach(target ${all_targets})
             target_compile_options(
                 ${target} PRIVATE
-                $<$<COMPILE_LANGUAGE:CXX>:"-Wno-psabi;-Wno-odr">
+                "$<$<COMPILE_LANGUAGE:CXX>:-Wno-psabi;-Wno-odr>"
             )
         endforeach()
      endif()

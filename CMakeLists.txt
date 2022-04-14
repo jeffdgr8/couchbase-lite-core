@@ -347,7 +347,7 @@ if(USE_COUCHBASE_SQLITE)
     )
 endif()
 
-setup_litecore_build()
+# setup_litecore_build()
 
 install (
     TARGETS LiteCore
@@ -367,3 +367,5 @@ install(FILES ${FLEECE_HEADERS} DESTINATION include/fleece)
 
 add_subdirectory(LiteCore/tests)
 add_subdirectory(C/tests)
+
+setup_litecore_build()
