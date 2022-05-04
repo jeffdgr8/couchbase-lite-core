@@ -85,10 +85,7 @@ static int copyfile(const char* from, const char* to)
     size_t expected = stat_buf.st_size;
     ssize_t bytes = 0;
     int noProgressRetry = 2;
-    int debugCount = 0;
-    int debugCount2 = expected;
     while (bytes < expected) {
-      ++debugCount;
         bytes = sendfile(write_fd, read_fd, &offset, expected - bytes);
         if (bytes < 0) {
             int e = errno;
@@ -97,8 +94,8 @@ static int copyfile(const char* from, const char* to)
             errno = e;
             return -1;
         } else if (bytes == 0) {
-            // zero bytes are read. Do we want to try again? 
-	  Warn("sys/sendfile makes no progress copying %s to %s", from, to);
+            // zero bytes are read. Do we want to try again? Well, give it another chance.
+            Warn("sys/sendfile makes no progress copying %s to %s", from, to);
             if (noProgressRetry-- == 0) {
                 close(read_fd);
                 close(write_fd);
@@ -108,7 +105,6 @@ static int copyfile(const char* from, const char* to)
             noProgressRetry = 2;
         }
     }
-    printf("jzhao - sendfile %d times (%d), %s -> %s\n", debugCount, debugCount2, from, to);
     
     if(close(read_fd) < 0) {
         int e = errno;
