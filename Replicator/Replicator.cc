@@ -28,6 +28,7 @@
 #include "BLIP.hh"
 #include "Address.hh"
 #include "Instrumentation.hh"
+#include "fleece/Mutable.hh"
 
 using namespace std;
 using namespace std::placeholders;
@@ -102,6 +103,7 @@ namespace litecore { namespace repl {
 
         registerHandler("getCheckpoint",    &Replicator::handleGetCheckpoint);
         registerHandler("setCheckpoint",    &Replicator::handleSetCheckpoint);
+        registerHandler("getCollections",   &Replicator::handleGetCollections);
     }
 
 
@@ -586,6 +588,123 @@ namespace litecore { namespace repl {
     }
 
 
+    void Replicator::getCollections(bool refresh) {
+        if (_remoteCheckpointRequested)
+            return;     // already in progress
+        
+        for (int i = 0; i < _collections.size(); i++) {
+            if (!_remoteCheckpointDocIDs[i])
+                _remoteCheckpointDocIDs[i] = _checkpointers[i].initialCheckpointID();
+            
+            if (!_remoteCheckpointDocIDs[i] || _connectionState != Connection::kConnected)
+                return;     // not ready yet
+        }
+        
+        logVerbose("Requesting get collections");
+        MessageBuilder msg("getCollections"_sl);
+        auto &enc = msg.jsonBody();
+        enc.beginDict();
+        enc.writeKey("ids"_sl);
+        enc.beginArray();
+        for (int i = 0; i < _collections.size(); i++) {
+            enc.writeString(_remoteCheckpointDocIDs[i]);
+        }
+        enc.endArray();
+        enc.writeKey("collections"_sl);
+        enc.beginArray();
+        for (auto it = _collections.begin(); it != _collections.end(); ++it) {
+            alloc_slice coll;
+            auto spec = it->get()->getSpec();
+            if (spec.scope != kC4DefaultScopeID) {
+                coll.append(slice(spec.scope));
+                coll.append("/");
+            }
+            coll.append(slice(spec.name));
+            enc.writeString(coll);
+        }
+        enc.endArray();
+        enc.endDict();
+        
+        Signpost::begin(Signpost::blipSent);
+        sendRequest(msg, [this, refresh](MessageProgress progress) {
+            // ...after the checkpoint is received:
+            if (progress.state != MessageProgress::kComplete)
+                return;
+            Signpost::end(Signpost::blipSent);
+            MessageIn *response = progress.reply;
+            
+            if (response->isError()) {
+                return gotError(response);
+            } else {
+                alloc_slice json = response->body();
+                Doc root = Doc::fromJSON(json, nullptr);
+                if (!root) {
+                    auto error = C4Error::printf(LiteCoreDomain, kC4ErrorRemoteError,
+                                                 "Unparseable checkpoints: %.*s", SPLAT(json));
+                    return gotError(error);
+                }
+                
+                Array checkpoints = root.asArray();
+                assert(checkpoints.count() == _collections.size());
+                for (int i = 0; i < _collections.size(); i++) {
+                    Checkpoint remoteCheckpoint;
+                    auto spec = _collections[i]->getSpec();
+                    Dict dict = checkpoints[i].asDict();
+                    if (!dict) {
+                        auto error = C4Error::printf(LiteCoreDomain, kC4ErrorRemoteError,
+                                                     "Collection '%.*s/%.*s' is not found on the remote server",
+                                                     SPLAT(spec.name), SPLAT(spec.scope));
+                        return gotError(error);
+                        
+                    } else if (dict.empty()) {
+                        logInfo("No remote checkpoint '%.*s' for collection '%.*s/%.*s'",
+                                SPLAT(_remoteCheckpointDocIDs[i]), SPLAT(spec.name), SPLAT(spec.scope));
+                        _remoteCheckpointRevIDs[i].reset();
+                    } else {
+                        remoteCheckpoint.readDict(dict);
+                        _remoteCheckpointRevIDs[i] = dict["rev"].asString();
+                        logInfo("Received remote checkpoint (rev='%.*s') for collection '%.*s/%.*s': %.*s", SPLAT(_remoteCheckpointRevIDs[i]), SPLAT(spec.name), SPLAT(spec.scope), SPLAT(dict.toString()));
+                    }
+                }
+                /*
+                TODO: Enable this code
+                for (int i = 0; i < _collections.size(); i++) {
+                    _remoteCheckpointReceived[i] = true;
+
+                    if (!refresh && _hadLocalCheckpoints[i]) {
+                        // Compare checkpoints, reset if mismatched:
+                        bool valid = _checkpointers[i].validateWith(remoteCheckpoint);
+                        if (!valid && _pushers[i])
+                            _pushers[i]->checkpointIsInvalid();
+
+                        // Now we have the checkpoints! Time to start replicating:
+                        startReplicating(i);
+                    }
+
+                    if (_checkpointJSONToSave[i])
+                        saveCheckpointNow(i);    // _saveCheckpoint() was waiting for _remoteCheckpointRevID
+                }
+                */
+            }
+        });
+
+        _remoteCheckpointRequested = true;
+
+        // If there's no local checkpoint, we know we're starting from zero and don't need to
+        // wait for the remote one before getting started:
+        if (!refresh && !_hadLocalCheckpoint) {
+            /*
+            TODO: Enable this code
+            for (int i = 0; i < _collections.size(); i++) {
+                if (!_hadLocalCheckpoint[i]) {
+                    startReplicating(i);
+                }
+            }
+            */
+        }
+    }
+
+
     void Replicator::_saveCheckpoint(alloc_slice json) {
         if (!connected())
             return;
@@ -768,6 +887,65 @@ namespace litecore { namespace repl {
 
         MessageBuilder response(request);
         response["rev"_sl] = newRevID;
+        request->respond(response);
+    }
+
+    void Replicator::handleGetCollections(Retained<blip::MessageIn> request) {
+        auto root = request->JSONBody().asDict();
+        if (!root) {
+            request->respondWithError({"BLIP"_sl, 400, "Invalid getCollections message: no root"_sl});
+            return;
+        }
+        
+        auto checkpointIDs = root["checkpoint_ids"].asArray();
+        if (!checkpointIDs || checkpointIDs.empty()) {
+            request->respondWithError({"BLIP"_sl, 400, "Invalid getCollections message: no checkpoint_ids"_sl});
+            return;
+        }
+        
+        auto collections = root["collections"].asArray();
+        if (!collections || collections.empty()) {
+            request->respondWithError({"BLIP"_sl, 400, "Invalid getCollections message: no collections"_sl});
+            return;
+        }
+        
+        if (checkpointIDs.count() != collections.count()) {
+            request->respondWithError({"BLIP"_sl, 400, "Invalid getCollections message: mismatched checkpoint_ids and collections"_sl});
+            return;
+        }
+        
+        MessageBuilder response(request);
+        auto &enc = response.jsonBody();
+        enc.beginArray();
+        
+        for (int i = 0; i < checkpointIDs.count(); i++) {
+            auto checkpointID = checkpointIDs[i].asString();
+            auto collectionPath = collections[i].asString();
+            
+            logInfo("Request to get peer checkpoint '%.*s' for collection '%.*s'",
+                    SPLAT(checkpointID), SPLAT(collectionPath));
+            
+            alloc_slice body, revID;
+            int status = 0;
+            try {
+                if (!Checkpointer::getPeerCheckpoint(_db->useLocked(), checkpointID, body, revID))
+                    status = 404;
+            } catch (...) {
+                C4Error::warnCurrentException("Replicator::handleGetCheckpoint");
+                status = 502;
+            }
+
+            if (status != 0) {
+                request->respondWithError({"HTTP"_sl, status});
+                return;
+            }
+            
+            Doc doc(body);
+            auto checkpoint = doc.root().asDict().mutableCopy();
+            checkpoint.set("rev"_sl, revID);
+            enc.writeValue(checkpoint);
+        }
+        enc.endArray();
         request->respond(response);
     }
 

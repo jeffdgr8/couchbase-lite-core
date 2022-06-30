@@ -155,6 +155,7 @@ namespace litecore { namespace repl {
         void _findExistingConflicts();        
         bool getLocalCheckpoint(bool reset);
         void getRemoteCheckpoint(bool refresh);
+        void getCollections(bool refresh);
         void startReplicating();
         void reportStatus();
 
@@ -171,6 +172,7 @@ namespace litecore { namespace repl {
         std::string remoteDBIDString() const;
         void handleGetCheckpoint(Retained<blip::MessageIn>);
         void handleSetCheckpoint(Retained<blip::MessageIn>);
+        void handleGetCollections(Retained<blip::MessageIn>);
         void returnForbidden(Retained<blip::MessageIn>);
         slice getPeerCheckpointDocID(blip::MessageIn* request, const char *whatFor) const;
 
@@ -197,6 +199,16 @@ namespace litecore { namespace repl {
         alloc_slice       _checkpointJSONToSave;       // JSON waiting to be saved to the checkpts
         alloc_slice       _remoteCheckpointDocID;      // Checkpoint docID to use with peer
         alloc_slice       _remoteCheckpointRevID;      // Latest revID of remote checkpoint
+        
+        
+        
+        vector<Checkpointer>                _checkpointers;               // Object that manages checkpoints
+        vector<bool>                        _hadLocalCheckpoints;         // True if local checkpoint pre-existed
+        vector<bool>                        _remoteCheckpointReceiveds;   // True if I got a "getCheckpoint" response
+        vector<alloc_slice>                 _checkpointJSONToSaves;       // JSON waiting to be saved to the checkpts
+        vector<alloc_slice>                 _remoteCheckpointDocIDs;      // Checkpoint docID to use with peer
+        vector<alloc_slice>                 _remoteCheckpointRevIDs;      // Latest revID of remote checkpoint
+        std::vector<Retained<C4Collection>> _collections;
     };
 
 } }
